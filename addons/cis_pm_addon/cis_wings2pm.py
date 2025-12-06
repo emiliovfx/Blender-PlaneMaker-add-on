@@ -1,7 +1,6 @@
 import math
-import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
 from pathlib import Path
+import os
 
 # ---------- Constants ----------
 
@@ -9,7 +8,9 @@ from pathlib import Path
 M2FT = 3.280839895
 
 # Wing template (zeroed) inside Templates folder
-WING_TEMPLATE_PATH = "Templates/wing_block_template_zeroed.txt"
+
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+WING_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "wing_block_template_zeroed.txt")
 
 
 # ---------- Geometry helpers (ORIGINAL, working) ----------
@@ -197,7 +198,7 @@ def compute_all_panels(obj_path, wing_dihed_deg, log_func=print):
 
 # ---------- Template-based wing block builder & ACF rewrite ----------
 
-def build_wing_blocks_from_template(panel_data, template_path, log_func=print):
+def build_wing_blocks_from_template(panel_data, template_path=WING_TEMPLATE_PATH, log_func=print):
     """
     Build full P _wing/n blocks for all wings using a zeroed template.
 
@@ -417,101 +418,3 @@ def generate_wings_from_template_and_rewrite_acf(acf_path, panel_data, template_
 
     return out_path
 
-
-# ---------- GUI (almost identical to original, but calls template-based writer) ----------
-
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Generate Wings/Tails in ACF from OBJ")
-        self.geometry("720x500")
-
-        self.obj_path = tk.StringVar()
-        self.acf_path = tk.StringVar()
-        self.wing_dihed = tk.StringVar(value="0.0")  # default dihedral
-
-        frm = tk.Frame(self)
-        frm.pack(fill="x", padx=10, pady=10)
-
-        # Row 0: OBJ
-        tk.Label(frm, text="Wings OBJ:").grid(row=0, column=0, sticky="w")
-        tk.Entry(frm, textvariable=self.obj_path, width=60).grid(row=0, column=1, sticky="we")
-        tk.Button(frm, text="Browse…", command=self.browse_obj).grid(row=0, column=2, padx=5)
-
-        # Row 1: ACF
-        tk.Label(frm, text="ACF file:").grid(row=1, column=0, sticky="w")
-        tk.Entry(frm, textvariable=self.acf_path, width=60).grid(row=1, column=1, sticky="we")
-        tk.Button(frm, text="Browse…", command=self.browse_acf).grid(row=1, column=2, padx=5)
-
-        # Row 2: Wing dihedral
-        tk.Label(frm, text="Wing dihedral (deg):").grid(row=2, column=0, sticky="w")
-        tk.Entry(frm, textvariable=self.wing_dihed, width=10).grid(row=2, column=1, sticky="w")
-
-        frm.columnconfigure(1, weight=1)
-
-        tk.Button(self, text="Run update", command=self.run_update).pack(pady=5)
-
-        self.log = scrolledtext.ScrolledText(self, height=20)
-        self.log.pack(fill="both", expand=True, padx=10, pady=5)
-
-    def log_print(self, msg):
-        self.log.insert("end", msg + "\n")
-        self.log.see("end")
-        print(msg)
-
-    def browse_obj(self):
-        path = filedialog.askopenfilename(
-            title="Select wings OBJ",
-            filetypes=[("OBJ files", "*.obj"), ("All files", "*.*")]
-        )
-        if path:
-            self.obj_path.set(path)
-
-    def browse_acf(self):
-        path = filedialog.askopenfilename(
-            title="Select ACF file",
-            filetypes=[("ACF files", "*.acf"), ("All files", "*.*")]
-        )
-        if path:
-            self.acf_path.set(path)
-
-    def run_update(self):
-        obj = self.obj_path.get().strip()
-        acf = self.acf_path.get().strip()
-        dihed_str = self.wing_dihed.get().strip() or "0.0"
-
-        if not obj or not Path(obj).is_file():
-            messagebox.showerror("Error", "Please select a valid wings OBJ file.")
-            return
-        if not acf or not Path(acf).is_file():
-            messagebox.showerror("Error", "Please select a valid ACF file.")
-            return
-
-        try:
-            wing_dihed = float(dihed_str)
-        except ValueError:
-            messagebox.showerror("Error", f"Invalid wing dihedral angle: {dihed_str}")
-            return
-
-        try:
-            self.log_print(f"Wing dihedral angle (Wing1/Wing2): {wing_dihed:.3f} deg\n")
-            self.log_print("Parsing OBJ and computing panel geometry (meters)…")
-            panel_data = compute_all_panels(obj, wing_dihed, log_func=self.log_print)
-
-            self.log_print("\nConverting to feet and generating wings in ACF from template…")
-            out_path = generate_wings_from_template_and_rewrite_acf(
-                acf,
-                panel_data,
-                template_path=WING_TEMPLATE_PATH,
-                log_func=self.log_print,
-            )
-
-            self.log_print(f"\nDone. Saved updated ACF as:\n{out_path}")
-            messagebox.showinfo("Success", f"Updated ACF saved as:\n{out_path}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Something went wrong:\n{e}")
-            self.log_print(f"ERROR: {e}")
-
-
-if __name__ == "__main__":
-    App().mainloop()
