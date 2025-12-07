@@ -370,9 +370,15 @@ class CIS_OT_PMGenerate(Operator):
             self.report({'ERROR'}, f"Wings generation failed: {e}")
             return {'CANCELLED'}
 
+
         # ✅ ALWAYS end execute with a FINISHED return
         self.report({'INFO'}, f"Done. Updated: {acf_out_path}")
+        try:
+            cis_logging.open_log_in_text_editor(focus=True)
+        except Exception:
+            pass
         return {'FINISHED'}
+
 
 
 # -------- Registration --------

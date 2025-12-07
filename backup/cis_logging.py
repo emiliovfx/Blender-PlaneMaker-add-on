@@ -3,91 +3,10 @@
 import logging
 import os
 import traceback
-import bpy
-from bpy.types import Operator
 
 LOG_FILENAME = "cis_pm_generator_log.txt"
 LOGGER_NAME = "cis_pm_generator"
 
-def _addon_root() -> str:
-    return os.path.dirname(os.path.abspath(__file__))
-
-def log_path() -> str:
-    return os.path.join(_addon_root(), "cis_pm_generator_log.txt")
-
-# ---- text-editor helpers ----
-def _refresh_text_block_if_loaded() -> None:
-    """If the log is loaded in bpy.data.texts, refresh its content from disk."""
-    p = log_path()
-    name = os.path.basename(p)
-    txt = bpy.data.texts.get(name)
-    if not txt:
-        return
-    try:
-        with open(p, "r", encoding="utf-8") as f:
-            content = f.read()
-        txt.clear()           # keep the same datablock, just refresh content
-        txt.write(content)
-    except Exception:
-        pass  # don't break logging if refresh fails
-
-def open_log_in_text_editor(focus: bool = True):
-    """
-    Ensure the log file is loaded as a Text datablock and (optionally) shown in a Text Editor area.
-    Returns the bpy.types.Text instance.
-    """
-    p = log_path()
-    name = os.path.basename(p)
-
-    # Ensure file exists
-    if not os.path.exists(p):
-        try:
-            with open(p, "w", encoding="utf-8"):
-                pass
-        except Exception:
-            return None
-
-    # If already loaded, refresh it; else load from disk
-    txt = bpy.data.texts.get(name)
-    if txt is None:
-        try:
-            txt = bpy.data.texts.load(p)  # creates a new Text datablock linked to filepath
-        except RuntimeError:
-            # Fallback: create and fill
-            txt = bpy.data.texts.new(name)
-            try:
-                with open(p, "r", encoding="utf-8") as f:
-                    txt.from_string(f.read())
-            except Exception:
-                pass
-    else:
-        _refresh_text_block_if_loaded()
-
-    if focus:
-        # Show in the first Text Editor area, if any
-        win = bpy.context.window
-        if win:
-            for area in win.screen.areas:
-                if area.type == "TEXT_EDITOR":
-                    area.spaces.active.text = txt
-                    break
-    return txt
-
-# ---- logging API ----
-def log_line(msg: str) -> None:
-    """Append a line to the log file, print, and refresh any loaded Text datablock."""
-    p = log_path()
-    try:
-        with open(p, "a", encoding="utf-8") as f:
-            f.write(f"{msg}\n")
-    except Exception:
-        # Still print to console even if FS write fails
-        print(msg)
-        return
-    print(msg)
-    _refresh_text_block_if_loaded()
-
-# (your existing cis_logging operators/registration can remain unchanged)
 
 def get_addon_root() -> str:
     """Return the folder where this add-on (cis_pm_addon) lives."""
